@@ -1,35 +1,77 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"os"
+	"fmt"	
 	"golang.org/x/crypto/ssh"
-	
+	"github.com/formeo/sshManyRunner/config"
 )
+var cConf config.MyJsonName
 
-func main() {
-	if len(os.Args) != 4 {
-		log.Fatalf("Usage: %s <user> <host:port> <command>", os.Args[0])
-	}
+var user string
+var pass string
 
-	client, session, err := connectToHost(os.Args[1], os.Args[2])
+func init(){
+	
+	cConfs, err := config.New("config.json")
+	
 	if err != nil {
 		panic(err)
 	}
-	out, err := session.CombinedOutput(os.Args[3])
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(out))
-	client.Close()
+	cConf = cConfs		
+	user = cConf.Cmdconf.Username
+	pass = cConf.Cmdconf.Password
+	
 }
 
-func connectToHost(user, host string) (*ssh.Client, *ssh.Session, error) {
-	var pass string
-	fmt.Print("Password: ")
-	fmt.Scanf("%s\n", &pass)
 
+
+func runCmd(nodename string,c chan string){
+	
+	client, session, err := connectToHost(nodename)
+	        if err != nil {
+		    c <-err.Error()
+			return
+	    }	
+	
+	//out, err := session.CombinedOutput("top")
+	out, err := session.Output("ifconfig")
+	if err != nil {
+	
+		c <-err.Error()
+		return
+		
+		
+	}
+
+	client.Close()
+    c <- string(out)
+	return
+	
+
+	
+}
+
+
+func main() {
+	fmt.Println("Start")
+	
+     for _, ms := range cConf.Cmdconf.Aliases{
+        c := make(chan string)    
+		fmt.Println("for node: ",ms.Name)    
+        go runCmd(ms.Name+":"+ms.Port,c)
+		fmt.Println("main function message: ",<-c)
+    
+	
+  
+		 
+}
+
+
+	
+}
+
+func connectToHost(host string) (*ssh.Client, *ssh.Session, error) {
+	
 	sshConfig := &ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{ssh.Password(pass)},
