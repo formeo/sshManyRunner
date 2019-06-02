@@ -1,12 +1,12 @@
 package config
 
 import (
-	"encoding/json"	
-	"io/ioutil"	
+	"encoding/json"
+	"io/ioutil"
 )
 
-type MyJsonName struct {
-	Cmdconf struct {
+type ConfStruct struct {
+	CmdConf struct {
 		Aliases []struct {
 			Description string `json:"Description"`
 			Enabled     bool   `json:"Enabled"`
@@ -18,9 +18,8 @@ type MyJsonName struct {
 	} `json:"Cmdconf"`
 }
 
+func New(filename string) (result *ConfStruct, err error) {
 
-func New(filename string) (result Cmdconf, err error) {
-   
 	file, e := ioutil.ReadFile(filename)
 	if e != nil {
 		return result, e
