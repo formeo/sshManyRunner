@@ -1,80 +1,79 @@
 package main
 
 import (
-	"fmt"	
-	"golang.org/x/crypto/ssh"
+	"fmt"
 	"github.com/formeo/sshManyRunner/config"
+	"golang.org/x/crypto/ssh"
 )
-var cConf config.MyJsonName
 
-var user string
-var pass string
+type Auth struct {
+	User  string
+	Pass  string
+	Hosts []string
+}
 
-func init(){
-	
-	cConfs, err := config.New("config.json")
-	
+func NewAuth(filename string) (a *Auth, err error) {
+	conf, err := config.New(filename)
+	if err != nil {
+		return nil, err
+	}
+	a = new(Auth)
+	a.User = conf.CmdConf.Username
+	a.Pass = conf.CmdConf.Password
+
+	for _, host := range conf.CmdConf.Aliases {
+		a.Hosts = append(a.Hosts, host.Name+":"+host.Port)
+
+	}
+	return a, nil
+}
+
+func (a *Auth) runCmd(nodeName string, c chan string) {
+
+	client, session, err := a.connectToHost(nodeName)
+	if err != nil {
+		c <- err.Error()
+		return
+	}
+
+	out, err := session.Output("ifconfig")
+	if err != nil {
+
+		c <- err.Error()
+		return
+
+	}
+
+	err = client.Close()
+	if err != nil {
+
+		c <- err.Error()
+		return
+
+	}
+	c <- string(out)
+	return
+
+}
+
+func main() {
+	a, err := NewAuth("config.json")
 	if err != nil {
 		panic(err)
 	}
-	cConf = cConfs		
-	user = cConf.Cmdconf.Username
-	pass = cConf.Cmdconf.Password
-	
-}
-
-
-
-func runCmd(nodename string,c chan string){
-	
-	client, session, err := connectToHost(nodename)
-	        if err != nil {
-		    c <-err.Error()
-			return
-	    }	
-	
-	//out, err := session.CombinedOutput("top")
-	out, err := session.Output("ifconfig")
-	if err != nil {
-	
-		c <-err.Error()
-		return
-		
-		
+	for _, host := range a.Hosts {
+		c := make(chan string)
+		fmt.Println("for node: ", host)
+		go a.runCmd(host, c)
+		fmt.Println("main function message: ", <-c)
 	}
-
-	client.Close()
-    c <- string(out)
-	return
-	
-
-	
 }
 
+func (a *Auth) connectToHost(host string) (*ssh.Client, *ssh.Session, error) {
 
-func main() {
-	fmt.Println("Start")
-	
-     for _, ms := range cConf.Cmdconf.Aliases{
-        c := make(chan string)    
-		fmt.Println("for node: ",ms.Name)    
-        go runCmd(ms.Name+":"+ms.Port,c)
-		fmt.Println("main function message: ",<-c)
-    
-	
-  
-		 
-}
-
-
-	
-}
-
-func connectToHost(host string) (*ssh.Client, *ssh.Session, error) {
-	
 	sshConfig := &ssh.ClientConfig{
-		User: user,
-		Auth: []ssh.AuthMethod{ssh.Password(pass)},
+		User: a.User,
+		Auth: []ssh.AuthMethod{ssh.Password(a.Pass)},
 	}
 
 	client, err := ssh.Dial("tcp", host, sshConfig)
@@ -84,7 +83,11 @@ func connectToHost(host string) (*ssh.Client, *ssh.Session, error) {
 
 	session, err := client.NewSession()
 	if err != nil {
-		client.Close()
+		err := client.Close()
+		if err != nil {
+			return nil, nil, err
+		}
+
 		return nil, nil, err
 	}
 
