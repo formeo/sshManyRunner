@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/formeo/sshManyRunner/config"
 	"golang.org/x/crypto/ssh"
@@ -22,13 +23,14 @@ func NewAuth(filename string) (a *Auth, err error) {
 	a.Pass = conf.CmdConf.Password
 
 	for _, host := range conf.CmdConf.Aliases {
-		a.Hosts = append(a.Hosts, host.Name+":"+host.Port)
-
+		if host.Enabled {
+			a.Hosts = append(a.Hosts, host.Name+":"+host.Port)
+		}
 	}
 	return a, nil
 }
 
-func (a *Auth) runCmd(nodeName string, c chan string) {
+func (a *Auth) runCmd(nodeName string, command string, c chan string) {
 
 	client, session, err := a.connectToHost(nodeName)
 	if err != nil {
@@ -36,7 +38,7 @@ func (a *Auth) runCmd(nodeName string, c chan string) {
 		return
 	}
 
-	out, err := session.Output("ifconfig")
+	out, err := session.Output(command)
 	if err != nil {
 
 		c <- err.Error()
@@ -59,12 +61,14 @@ func (a *Auth) runCmd(nodeName string, c chan string) {
 func main() {
 	a, err := NewAuth("config.json")
 	if err != nil {
+		fmt.Println("Внимание! Файл настройки не найден")
 		panic(err)
 	}
+	commandPtr := flag.String("command", "ifconfig", "please write a command")
 	for _, host := range a.Hosts {
 		c := make(chan string)
 		fmt.Println("for node: ", host)
-		go a.runCmd(host, c)
+		go a.runCmd(host, *commandPtr, c)
 		fmt.Println("main function message: ", <-c)
 	}
 }
