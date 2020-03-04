@@ -1,8 +1,8 @@
 package auth
 
 import (
+	"github.com/formeo/sshManyRunner/config"
 	"golang.org/x/crypto/ssh"
-	"sshManyRunner/config"
 )
 
 type Auth struct {

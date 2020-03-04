@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"sshManyRunner/auth"
-	"sshManyRunner/config"
+	"github.com/formeo/sshManyRunner/auth"
+	"github.com/formeo/sshManyRunner/config"
 )
 
 func main() {
