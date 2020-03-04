@@ -1,0 +1,9 @@
+/.idea
+/.env
+/.test_env
+/venv
+/main*
+/scheduler*
+/migrator*
+/cover.out
+.DS_Store
